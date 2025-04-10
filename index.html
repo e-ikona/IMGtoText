@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Atul's Text</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #a5b4fc;
+            --glass: rgba(255, 255, 255, 0.15);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        .dropzone {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+        }
+
+        .dropzone.active {
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .glow-effect {
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, var(--primary), #8b5cf6);
+            height: 6px;
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+
+        .card {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
+        }
+
+        #result {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .neon-text {
+            text-shadow: 0 0 8px rgba(167, 139, 250, 0.6);
+        }
+
+        .holographic-effect {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .holographic-effect::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(to bottom right,
+                    rgba(255, 255, 255, 0) 0%,
+                    rgba(255, 255, 255, 0.1) 50%,
+                    rgba(255, 255, 255, 0) 100%);
+            transform: rotate(30deg);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% {
+                transform: translateX(-100%) rotate(30deg);
+            }
+
+            100% {
+                transform: translateX(100%) rotate(30deg);
+            }
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .floating {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        #pdfPreview img {
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center p-4">
+    <div class="card w-full max-w-4xl rounded-2xl overflow-hidden">
+        <div
+            class="holographic-effect bg-gradient-to-r from-indigo-900 to-indigo-700 p-8 text-white relative overflow-hidden">
+            <div class="relative z-10">
+                <h1 class="text-3xl font-bold neon-text flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-3" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                    </svg>
+                    Atul's Text
+                </h1>
+                <p class="text-indigo-200 mt-2">Ubah gambar/pdf menjadi ke bentuk Teks
+                </p>
+            </div>
+            <div class="absolute -bottom-20 -right-20 w-40 h-40 bg-indigo-500 rounded-full filter blur-3xl opacity-20">
+            </div>
+            <div class="absolute -top-20 -left-20 w-40 h-40 bg-purple-500 rounded-full filter blur-3xl opacity-20">
+            </div>
+        </div>
+
+        <div class="p-8">
+            <!-- Drag and Drop Area -->
+            <div id="dropzone"
+                class="dropzone rounded-xl p-12 text-center cursor-pointer mb-8 transition-all duration-300 hover:border-indigo-400">
+                <div class="floating inline-block">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-indigo-300" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                </div>
+                <p class="mt-4 text-gray-300">Seret & lepas file PDF/gambar di sini atau</p>
+                <label for="fileInput"
+                    class="mt-4 inline-block px-6 py-3 btn-primary text-white rounded-xl hover:shadow-lg cursor-pointer transition-all">
+                    Pilih File
+                </label>
+                <input type="file" id="fileInput" accept="image/*,.pdf" class="hidden" />
+                <p class="mt-3 text-sm text-gray-400">Format yang didukung: PDF, JPG, PNG, IMG</p>
+            </div>
+
+            <!-- File Info -->
+            <div id="fileInfo"
+                class="hidden mb-6 p-4 bg-slate-800 rounded-xl flex items-center border border-slate-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-400 mr-3" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div class="flex-1 min-w-0">
+                    <p id="fileName" class="text-indigo-100 font-medium truncate"></p>
+                    <div class="flex items-center mt-1">
+                        <span id="fileType"
+                            class="text-indigo-300 text-xs bg-indigo-900 bg-opacity-50 px-2 py-1 rounded"></span>
+                        <span id="fileSize" class="ml-2 text-slate-400 text-xs"></span>
+                    </div>
+                </div>
+                <button id="clearBtn" class="text-slate-400 hover:text-indigo-300 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Image Preview -->
+            <div id="imagePreviewContainer" class="hidden mb-8 text-center">
+                <div class="relative inline-block">
+                    <img id="imagePreview" alt="Preview"
+                        class="max-h-96 rounded-xl shadow-2xl border border-slate-700" />
+                    <div class="absolute inset-0 rounded-xl border-2 border-transparent pointer-events-none"
+                        id="imagePreviewBorder"></div>
+                </div>
+            </div>
+
+            <!-- PDF Preview -->
+            <div id="pdfPreviewContainer" class="hidden mb-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-medium text-slate-200">Pratinjau Halaman PDF</h3>
+                    <div class="text-sm text-slate-400">
+                        Halaman: <span id="currentPage">1</span> / <span id="totalPages">1</span>
+                    </div>
+                </div>
+                <div id="pdfPreview"
+                    class="flex flex-col items-center border border-slate-700 rounded-xl p-4 max-h-96 overflow-y-auto bg-slate-900/50">
+                </div>
+                <div class="flex justify-center mt-4 space-x-3">
+                    <button id="prevPage" class="px-4 py-2 btn-secondary rounded-xl disabled:opacity-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <button id="nextPage" class="px-4 py-2 btn-secondary rounded-xl disabled:opacity-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div id="progressContainer" class="hidden mb-8">
+                <div class="flex justify-between mb-2">
+                    <span class="text-sm font-medium text-slate-300">Memproses...</span>
+                    <span id="progressPercent" class="text-sm font-medium text-indigo-300">0%</span>
+                </div>
+                <div class="w-full bg-slate-700 rounded-full h-2">
+                    <div id="progressBar" class="progress-bar h-2 rounded-full" style="width: 0%"></div>
+                </div>
+                <p id="progressStatus" class="text-sm text-slate-400 mt-2">Mempersiapkan engine OCR...</p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-4 mb-8">
+                <button id="processBtn" disabled
+                    class="flex-1 btn-primary py-3 px-6 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                    <div class="flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Proses OCR
+                    </div>
+                </button>
+                <button id="clearBtn" class="flex-1 btn-secondary py-3 px-6 rounded-xl text-slate-200">
+                    Reset
+                </button>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="loading" class="hidden p-6 mb-6 bg-slate-800 rounded-xl text-center border border-slate-700">
+                <div class="flex flex-col items-center">
+                    <div class="relative">
+                        <div
+                            class="h-12 w-12 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin">
+                        </div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <div class="h-6 w-6 rounded-full bg-indigo-500 animate-pulse"></div>
+                        </div>
+                    </div>
+                    <p class="mt-4 text-indigo-300 font-medium">Menganalisis dokumen...</p>
+                    <p class="text-sm text-slate-400 mt-1" id="loadingStatus">Ini mungkin memakan waktu beberapa detik
+                    </p>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="mb-4 flex justify-between items-center">
+                <h2 class="text-xl font-semibold text-slate-200 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Hasil Ekstraksi
+                </h2>
+                <div class="flex space-x-2">
+                    <button id="copyBtn"
+                        class="hidden text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-4 rounded-lg transition flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                        </svg>
+                        Salin
+                    </button>
+                    <button id="downloadBtn"
+                        class="hidden text-sm bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg transition flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Unduh
+                    </button>
+                </div>
+            </div>
+            <div id="result"
+                class="p-5 rounded-xl min-h-48 max-h-96 overflow-y-auto whitespace-pre-wrap font-mono text-sm text-slate-200">
+                <p class="text-slate-500 text-center py-12">Hasil ekstraksi teks akan muncul di sini</p>
+            </div>
+
+            <!-- Accuracy Indicator -->
+            <div id="accuracyContainer" class="hidden mt-4 text-right">
+                <span
+                    class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300">
+                    <span class="w-2 h-2 mr-2 rounded-full bg-green-400 animate-pulse"></span>
+                    Akurasi: <span id="accuracyValue" class="ml-1">Tinggi</span>
+                </span>
+            </div>
+        </div>
+        <footer class="bg-slate-900 text-gray-400 text-sm mt-8 px-6 py-6 rounded-b-2xl text-center">
+            <div class="max-w-4xl mx-auto">
+                <p>&copy; 2025 <span class="text-indigo-400 font-semibold">Atul's Text</span>. Semua hak dilindungi.</p>
+                <p class="mt-1">Dibuat oleh Atul's Team dengan penuh cinta 🥰</p>
+            </div>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
