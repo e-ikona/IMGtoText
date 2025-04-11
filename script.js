@@ -508,13 +508,6 @@ function resetResultDisplay() {
         elements.result.classList.remove('hidden', 'text-red-400');
     }
 }
-
-// Panggil fungsi ini saat:
-// - Aplikasi pertama kali load
-// - Tombol clear diklik
-// - Sebelum memulai proses baru
-
-// Contoh dalam clearBtn event listener:
 elements.clearBtn.addEventListener('click', () => {
     resetApplication();
     resetResultDisplay();
