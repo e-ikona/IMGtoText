@@ -1,5 +1,9 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.worker.min.js';
 
+// Dynamically load jsQR only when needed
+let jsQRLoaded = false;
+let jsQRScript = null;
+
 const elements = {
     fileInput: document.getElementById('fileInput'),
     dropzone: document.getElementById('dropzone'),
@@ -20,10 +24,14 @@ const elements = {
     loading: document.getElementById('loading'),
     result: document.getElementById('result'),
     copyBtn: document.getElementById('copyBtn'),
+    downloadBtn: document.getElementById('downloadBtn'),
     progressContainer: document.getElementById('progressContainer'),
     progressBar: document.getElementById('progressBar'),
     progressPercent: document.getElementById('progressPercent'),
-    progressStatus: document.getElementById('progressStatus')
+    progressStatus: document.getElementById('progressStatus'),
+    accuracyContainer: document.getElementById('accuracyContainer'),
+    accuracyValue: document.getElementById('accuracyValue'),
+    modeSelect: document.getElementById('modeSelect')
 };
 
 let selectedFile = null;
@@ -66,6 +74,7 @@ function handleFileSelect(file) {
 async function loadPdfFile(file) {
     try {
         elements.loading.classList.remove('hidden');
+        elements.progressStatus.textContent = "Memuat dokumen PDF...";
         
         const arrayBuffer = await file.arrayBuffer();
         pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
@@ -74,33 +83,10 @@ async function loadPdfFile(file) {
         elements.totalPages.textContent = totalPages;
         elements.pdfPreviewContainer.classList.remove('hidden');
 
-        // Render semua halaman langsung
-        pdfImages = []; // reset
-        for (let i = 1; i <= totalPages; i++) {
-            const page = await pdfDocument.getPage(i);
-            const viewport = page.getViewport({ scale: 1.5 });
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-
-            await page.render({
-                canvasContext: context,
-                viewport: viewport
-            }).promise;
-
-            const img = document.createElement('img');
-            img.src = canvas.toDataURL('image/png');
-            img.alt = `Halaman ${i}`;
-            img.className = 'pdf-page hidden'; // disembunyikan dulu
-
-            pdfImages.push(img); // simpan elemen img
-        }
-
-        // Tampilkan halaman pertama
-        currentPdfPage = 1;
-        updatePdfPageDisplay();
-
+        // Render first page for preview
+        pdfImages = [];
+        await renderPdfPage(1);
+        
         elements.loading.classList.add('hidden');
         elements.processBtn.disabled = false;
     } catch (error) {
@@ -110,20 +96,36 @@ async function loadPdfFile(file) {
     }
 }
 
-function updatePdfPageDisplay() {
-    elements.pdfPreview.innerHTML = ''; // kosongkan container
+async function renderPdfPage(pageNumber) {
+    const page = await pdfDocument.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: 1.5 });
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
 
-    const img = pdfImages[currentPdfPage - 1];
-    if (img) {
-        elements.pdfPreview.appendChild(img);
-        img.classList.remove('hidden');
-    }
+    await page.render({
+        canvasContext: context,
+        viewport: viewport
+    }).promise;
 
-    elements.currentPage.textContent = currentPdfPage;
-    elements.prevPage.disabled = currentPdfPage <= 1;
-    elements.nextPage.disabled = currentPdfPage >= pdfImages.length;
+    // Clear previous content
+    elements.pdfPreview.innerHTML = '';
+    
+    const img = document.createElement('img');
+    img.src = canvas.toDataURL('image/png');
+    img.alt = `Halaman ${pageNumber}`;
+    elements.pdfPreview.appendChild(img);
+    
+    // Save canvas for processing
+    pdfImages[pageNumber - 1] = canvas;
+    
+    elements.currentPage.textContent = pageNumber;
+    elements.prevPage.disabled = pageNumber <= 1;
+    elements.nextPage.disabled = pageNumber >= pdfDocument.numPages;
 }
 
+// Event listeners
 elements.dropzone.addEventListener('dragover', (e) => {
     e.preventDefault();
     elements.dropzone.classList.add('active');
@@ -149,22 +151,30 @@ elements.fileInput.addEventListener('change', function(event) {
     }
 });
 
-elements.prevPage.addEventListener('click', () => {
+elements.prevPage.addEventListener('click', async () => {
     if (currentPdfPage > 1) {
         currentPdfPage--;
-        updatePdfPageDisplay();
+        await renderPdfPage(currentPdfPage);
     }
 });
 
-elements.nextPage.addEventListener('click', () => {
-    if (currentPdfPage < pdfImages.length) {
+elements.nextPage.addEventListener('click', async () => {
+    if (currentPdfPage < pdfDocument.numPages) {
         currentPdfPage++;
-        updatePdfPageDisplay();
+        await renderPdfPage(currentPdfPage);
     }
 });
-
 
 elements.clearBtn.addEventListener('click', () => {
+    resetApplication();
+});
+
+elements.modeSelect.addEventListener('change', () => {
+    // When mode changes, reset the application
+    resetApplication();
+});
+
+function resetApplication() {
     elements.fileInput.value = '';
     elements.imagePreviewContainer.classList.add('hidden');
     elements.pdfPreviewContainer.classList.add('hidden');
@@ -172,54 +182,111 @@ elements.clearBtn.addEventListener('click', () => {
     elements.processBtn.disabled = true;
     elements.result.textContent = '';
     elements.copyBtn.classList.add('hidden');
+    elements.downloadBtn.classList.add('hidden');
     elements.progressContainer.classList.add('hidden');
+    elements.accuracyContainer.classList.add('hidden');
     selectedFile = null;
     pdfDocument = null;
     pdfImages = [];
-});
+}
 
 elements.copyBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(elements.result.textContent)
         .then(() => {
             const originalText = elements.copyBtn.textContent;
-            elements.copyBtn.textContent = 'Tersalin!';
+            elements.copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Tersalin!';
             setTimeout(() => {
-                elements.copyBtn.textContent = originalText;
+                elements.copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>Salin';
             }, 2000);
         });
 });
 
-// Process button
+elements.downloadBtn.addEventListener('click', () => {
+    const blob = new Blob([elements.result.textContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = selectedFile ? `hasil-${selectedFile.name.split('.')[0]}.txt` : 'hasil-ocr.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+});
+
 elements.processBtn.addEventListener('click', async () => {
     if (!selectedFile) {
         showError("Silakan pilih file terlebih dahulu");
         return;
     }
 
-    elements.result.textContent = '';
-    elements.loading.classList.remove('hidden');
-    elements.processBtn.disabled = true;
-    elements.progressContainer.classList.remove('hidden');
-    elements.copyBtn.classList.add('hidden');
+    const mode = elements.modeSelect.value;
+    
+    if (mode === "qr") {
+        await processQRCode();
+    } else {
+        await processOCR();
+    }
+});
 
+async function loadJSQR() {
+    return new Promise((resolve, reject) => {
+        if (typeof jsQR !== 'undefined') {
+            resolve();
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('Gagal memuat jsQR'));
+        document.head.appendChild(script);
+    });
+}
+
+async function processQRCode() {
     try {
-        let results = [];
         
+        if (typeof jsQR === 'undefined'){
+            await loadJSQR();
+        }
+        
+        if (elements.result) elements.result.textContent = '';
+        elements.loading?.classList.remove('hidden');
+        elements.progressContainer?.classList.remove('hidden');
+        elements.copyBtn?.classList.add('hidden');
+        elements.downloadBtn?.classList.add('hidden');
+        elements.processBtn.disabled = true;
+        if (elements.progressStatus) elements.progressStatus.textContent = "Mempersiapkan pemindai QR...";
+
+        let found = false;
+        let resultText = '';
+
+        const scanImage = async (imgElement) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = imgElement.naturalWidth || imgElement.width;
+            canvas.height = imgElement.naturalHeight || imgElement.height;
+            ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, canvas.width, canvas.height, {
+                inversionAttempts: 'dontInvert',
+            });
+
+            return code ? code.data : null;
+        };
+
         if (selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf')) {
-            // Langsung proses semua halaman tanpa render preview
             if (!pdfDocument) {
                 const arrayBuffer = await selectedFile.arrayBuffer();
                 pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
             }
 
             const totalPages = pdfDocument.numPages;
-            pdfImages = []; // Reset canvas storage
-
-            // Proses semua halaman sekaligus
+            
             for (let i = 1; i <= totalPages; i++) {
-                updateProgress(Math.round(((i-1) / totalPages) * 100), `Memproses halaman ${i}/${totalPages}...`);
+                updateProgress(Math.round((i / totalPages) * 50), `Memindai halaman ${i}/${totalPages}...`);
                 
-                // Render halaman ke canvas
                 const page = await pdfDocument.getPage(i);
                 const viewport = page.getViewport({ scale: 1.5 });
                 const canvas = document.createElement('canvas');
@@ -232,7 +299,78 @@ elements.processBtn.addEventListener('click', async () => {
                     viewport: viewport
                 }).promise;
 
-                // Proses OCR langsung
+                const result = await scanImage(canvas);
+                if (result) {
+                    found = true;
+                    resultText += `=== QR DITEMUKAN PADA HALAMAN ${i} ===\n${result}\n\n`;
+                }
+            }
+        } else {
+            updateProgress(50, 'Memindai gambar...');
+            const result = await scanImage(elements.imagePreview);
+            if (result) {
+                found = true;
+                resultText = result;
+            }
+        }
+
+        if (found) {
+            elements.result.textContent = resultText;
+            elements.copyBtn.classList.remove('hidden');
+            elements.downloadBtn.classList.remove('hidden');
+            updateProgress(100, 'QR Code berhasil ditemukan!');
+        } else {
+            showError('Tidak ditemukan QR Code dalam dokumen.');
+            updateProgress(100, 'Pemindaian selesai');
+        }
+    } catch (error) {
+        showError("Terjadi kesalahan saat memindai QR: " + error.message);
+        console.error("QR Scan Error:", error);
+    } finally {
+        elements.loading?.classList.add('hidden');
+        elements.processBtn.disabled = false;
+    }
+}
+
+async function processOCR() {
+    if (!selectedFile) {
+        showError("Silakan pilih file terlebih dahulu");
+        return;
+    }
+
+    elements.result.textContent = '';
+    elements.loading.classList.remove('hidden');
+    elements.processBtn.disabled = true;
+    elements.progressContainer.classList.remove('hidden');
+    elements.copyBtn.classList.add('hidden');
+    elements.downloadBtn.classList.add('hidden');
+
+    try {
+        let results = [];
+        
+        if (selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf')) {
+            if (!pdfDocument) {
+                const arrayBuffer = await selectedFile.arrayBuffer();
+                pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
+            }
+
+            const totalPages = pdfDocument.numPages;
+            
+            for (let i = 1; i <= totalPages; i++) {
+                updateProgress(Math.round(((i-1) / totalPages) * 100), `Memproses halaman ${i}/${totalPages}...`);
+                
+                const page = await pdfDocument.getPage(i);
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport
+                }).promise;
+
                 const processedImage = await preprocessImage(canvas);
                 const text = await runOCR(processedImage);
                 
@@ -243,7 +381,6 @@ elements.processBtn.addEventListener('click', async () => {
             
             elements.result.textContent = results.join('\n');
         } else {
-            // Process single image
             updateProgress(0, 'Memproses gambar...');
             const processedImage = await preprocessImage(elements.imagePreview);
             const text = await runOCR(processedImage);
@@ -252,6 +389,8 @@ elements.processBtn.addEventListener('click', async () => {
         
         updateProgress(100, 'Selesai!');
         elements.copyBtn.classList.remove('hidden');
+        elements.downloadBtn.classList.remove('hidden');
+        updateAccuracyIndicator('Sedang');
     } catch (error) {
         showError("Terjadi kesalahan: " + error.message);
         console.error(error);
@@ -259,8 +398,7 @@ elements.processBtn.addEventListener('click', async () => {
         elements.loading.classList.add('hidden');
         elements.processBtn.disabled = false;
     }
-});
-
+}
 
 async function runOCR(imageSrc) {
     const worker = await Tesseract.createWorker({
@@ -272,8 +410,6 @@ async function runOCR(imageSrc) {
                 updateProgress(0, 'Menginisialisasi OCR...');
             } else if (m.status === 'loading language traineddata') {
                 updateProgress(10, 'Memuat bahasa...');
-            } else {
-                console.log(m);
             }
         },
     });
@@ -292,11 +428,9 @@ async function preprocessImage(imageElement) {
     let ctx;
     
     if (imageElement instanceof HTMLCanvasElement) {
-        // Already a canvas
         canvas = imageElement;
         ctx = canvas.getContext('2d');
     } else if (imageElement instanceof HTMLImageElement) {
-        // Create canvas from image
         if (!imageElement.complete || imageElement.naturalWidth === 0) {
             throw new Error("Gambar belum dimuat dengan sempurna.");
         }
@@ -310,13 +444,13 @@ async function preprocessImage(imageElement) {
         throw new Error("Format gambar tidak didukung");
     }
     
+    // Apply simple thresholding
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
 
-    // Convert to grayscale and apply threshold
     for (let i = 0; i < data.length; i += 4) {
         const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-        const binary = avg > 127 ? 255 : 0;
+        const binary = avg > 180 ? 255 : 0; // Adjust threshold as needed
         data[i] = data[i + 1] = data[i + 2] = binary;
     }
 
@@ -330,12 +464,34 @@ function updateProgress(percent, message) {
     elements.progressStatus.textContent = message;
 }
 
+function updateAccuracyIndicator(accuracy) {
+    elements.accuracyContainer.classList.remove('hidden');
+    elements.accuracyValue.textContent = accuracy;
+    
+    const indicator = elements.accuracyContainer.querySelector('.w-2.h-2');
+    indicator.className = 'w-2 h-2 mr-2 rounded-full';
+    
+    if (accuracy === 'Tinggi') {
+        indicator.classList.add('bg-green-400');
+    } else if (accuracy === 'Sedang') {
+        indicator.classList.add('bg-yellow-400');
+    } else {
+        indicator.classList.add('bg-red-400');
+    }
+}
+
 function showError(message) {
-    elements.result.textContent = "❌ " + message;
-    elements.result.classList.add('text-red-600');
-    setTimeout(() => {
-        elements.result.classList.remove('text-red-600');
-    }, 3000);
+    if (elements.result) {
+        elements.result.textContent = "❌ " + message;
+        elements.result.classList.add('text-red-400');
+        setTimeout(() => {
+            if (elements.result) {
+                elements.result.classList.remove('text-red-400');
+            }
+        }, 3000);
+    } else {
+        console.error("Error: " + message);
+    }
 }
 
 function formatFileSize(bytes) {
@@ -345,3 +501,21 @@ function formatFileSize(bytes) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
+function resetResultDisplay() {
+    if (elements.result) {
+        elements.result.innerHTML = '<p class="text-gray-400 italic">Hasil konversi akan muncul di sini...</p>';
+        elements.result.classList.remove('hidden', 'text-red-400');
+    }
+}
+
+// Panggil fungsi ini saat:
+// - Aplikasi pertama kali load
+// - Tombol clear diklik
+// - Sebelum memulai proses baru
+
+// Contoh dalam clearBtn event listener:
+elements.clearBtn.addEventListener('click', () => {
+    resetApplication();
+    resetResultDisplay();
+});

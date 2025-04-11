@@ -61,6 +61,20 @@
             font-family: 'JetBrains Mono', monospace;
             background: rgba(15, 23, 42, 0.7);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            min-height: 80px; 
+            position: relative;
+        }
+
+        #result:empty::before {
+            content: "Hasil konversi akan muncul di sini...";
+            color: #94a3b8;
+            font-style: italic;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            text-align: center;
         }
 
         .neon-text {
@@ -155,7 +169,7 @@
                     </svg>
                     Atul's Text
                 </h1>
-                <p class="text-indigo-200 mt-2">Ubah gambar/pdf menjadi ke bentuk Teks
+                <p class="text-indigo-200 mt-2">Ubah gambar/pdf menjadi ke bentuk Teks dan scan QR kamu
                 </p>
             </div>
             <div class="absolute -bottom-20 -right-20 w-40 h-40 bg-indigo-500 rounded-full filter blur-3xl opacity-20">
@@ -259,17 +273,25 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="flex gap-4 mb-8">
-                <button id="processBtn" disabled
-                    class="flex-1 btn-primary py-3 px-6 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
-                    <div class="flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <div class="flex flex-col sm:flex-row items-stretch gap-2 mb-8">
+                <div class="relative flex-1 min-w-0">
+                    <select id="modeSelect"
+                        class="w-full border rounded-xl pl-4 pr-10 py-3 bg-slate-700 text-white appearance-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base h-12 sm:h-auto">
+                        <option value="qr">QR Code</option>
+                        <option value="ocr">Gambar/PDF</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
-                        Proses OCR
                     </div>
+                </div>
+                <button id="processBtn" disabled
+                    class="flex-1 btn-primary py-3 px-4 sm:px-6 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 sm:gap-2 hover:bg-indigo-700 transition-colors h-12 sm:h-auto">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    <span class="text-sm sm:text-base">Proses</span>
                 </button>
             </div>
 
@@ -289,21 +311,20 @@
                     </p>
                 </div>
             </div>
-
-            <!-- Results -->
-            <div class="mb-4 flex justify-between items-center">
-                <h2 class="text-xl font-semibold text-slate-200 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-400" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Hasil Ekstraksi
-                </h2>
-                <div class="flex space-x-2">
+            
+            <!-- Results Display -->
+            <div class="mt-4 space-y-3">
+                <!-- Result Display -->
+                <div id="result"
+                    class="bg-slate-800 rounded-lg border border-slate-700 p-4 min-h-[120px] max-h-[300px] overflow-y-auto">
+                    <p class="text-gray-400 italic text-center py-8">Hasil akan muncul di sini...</p>
+                </div>
+            
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap justify-center gap-3">
                     <button id="copyBtn"
-                        class="hidden text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-4 rounded-lg transition flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24"
+                        class="hidden text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-4 rounded-lg transition-all flex items-center justify-center w-full sm:w-auto min-w-[120px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24"
                             stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
@@ -311,19 +332,15 @@
                         Salin
                     </button>
                     <button id="downloadBtn"
-                        class="hidden text-sm bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg transition flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24"
+                        class="hidden text-sm bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg transition-all flex items-center justify-center w-full sm:w-auto min-w-[120px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24"
                             stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
-                        Unduh
+                        Unduh TXT
                     </button>
                 </div>
-            </div>
-            <div id="result"
-                class="p-5 rounded-xl min-h-48 max-h-96 overflow-y-auto whitespace-pre-wrap font-mono text-sm text-slate-200">
-                <p class="text-slate-500 text-center py-12">Hasil ekstraksi teks akan muncul di sini</p>
             </div>
 
             <!-- Accuracy Indicator -->
